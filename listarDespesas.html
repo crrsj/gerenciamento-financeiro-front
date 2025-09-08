@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lista de Despesas</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<style>
+.btn-voltar {
+  font-size: 1.2rem;
+  padding: 10px 25px;
+  border-radius: 50px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-voltar:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+}
+
+</style>
+<body class="bg-light">
+
+  <div class="container mt-5">
+    <h2 class="mb-4 text-center">📋 Lista de Despesas</h2>
+
+    <!-- Tabela -->
+    <table class="table table-striped table-bordered">
+      <thead class="table-dark">
+        <tr>
+          <th>ID</th>
+          <th>Descrição</th>
+          <th>Categoria</th>
+          <th>Valor</th>
+          <th>Data</th>
+          <th>Forma de Pagamento</th>
+          <th>Parcelas</th>
+        </tr>
+      </thead>
+      <tbody id="tabela-despesas">
+        <!-- Dados serão preenchidos via JS -->
+      </tbody>
+    </table>
+
+    <!-- Paginação -->
+    <div class="d-flex justify-content-between mt-3">
+      <button id="btnAnterior" class="btn btn-secondary">⬅️ Anterior</button>
+      <span id="paginaInfo" class="align-self-center fw-bold"></span>
+      <button id="btnProximo" class="btn btn-secondary">Próxima ➡️</button>
+    </div>
+  </div>
+
+  <div class="text-center mt-4">
+  <a href="./index.html" class="btn btn-primary btn-voltar" onclick="voltarAoMenu()">
+    <i class="bi bi-house-door-fill"></i> Voltar ao Menu
+  </a>
+</div>
+
+  <script>
+    const urlBase = "http://localhost:8080/api/despesas";
+    let paginaAtual = 0;
+    const tamanhoPagina = 10;
+
+    async function carregarDespesas(pagina) {
+      try {
+        const response = await fetch(`${urlBase}?page=${pagina}&size=${tamanhoPagina}`);
+        if (!response.ok) {
+          throw new Error("Erro ao buscar despesas");
+        }
+
+        const data = await response.json();
+        const despesas = data.content;
+        const tabela = document.getElementById("tabela-despesas");
+        tabela.innerHTML = "";
+
+        // Preenche tabela
+        despesas.forEach(despesa => {
+          const row = `
+            <tr>
+              <td>${despesa.id}</td>
+              <td>${despesa.descricao}</td>
+              <td>${despesa.categoria}</td>
+              <td>R$ ${despesa.valorTotal.toFixed(2)}</td>
+              <td>${despesa.data}</td>
+              <td>${despesa.formaPagamento}</td>
+              <td>${despesa.parcelas}</td>
+            </tr>`;
+          tabela.insertAdjacentHTML("beforeend", row);
+        });
+
+        // Atualiza info de página
+        document.getElementById("paginaInfo").textContent = 
+          `Página ${data.number + 1} de ${data.totalPages}`;
+
+        // Controla botões
+        document.getElementById("btnAnterior").disabled = data.first;
+        document.getElementById("btnProximo").disabled = data.last;
+
+      } catch (error) {
+        console.error(error);
+        alert("Erro ao carregar despesas!");
+      }
+    }
+
+    // Eventos dos botões
+    document.getElementById("btnAnterior").addEventListener("click", () => {
+      if (paginaAtual > 0) {
+        paginaAtual--;
+        carregarDespesas(paginaAtual);
+      }
+    });
+
+    document.getElementById("btnProximo").addEventListener("click", () => {
+      paginaAtual++;
+      carregarDespesas(paginaAtual);
+    });
+
+    // Carrega primeira página
+    carregarDespesas(paginaAtual);
+  </script>
+</body>
+</html>

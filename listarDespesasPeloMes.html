@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Controle de Despesas</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    body {
+      background: #f8f9fa;
+    }
+    .container {
+      margin-top: 40px;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .summary-box {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    .btn-voltar {
+    font-size: 1.2rem;
+    padding: 10px 25px;
+    border-radius: 50px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+.btn-voltar:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1><i class="bi bi-wallet2"></i> Controle de Despesas Mensais</h1>
+
+    <!-- Filtro por mês -->
+    <div class="mb-3">
+      <label for="mesFiltro" class="form-label">Filtrar por mês</label>
+      <input type="month" id="mesFiltro" class="form-control">
+    </div>
+
+    <!-- Tabela de despesas -->
+    <table class="table table-striped">
+      <thead class="table-dark">
+        <tr>
+          <th>ID</th>
+          <th>Descrição</th>
+          <th>Data</th>
+          <th>Valor</th>
+          <th>Pagamento</th>
+          <th>Parcelas</th>
+          <th>Editar/Excluir</th>        
+        </tr>
+      </thead>
+      <tbody id="tabelaDespesas">
+        <!-- Linhas geradas dinamicamente -->
+      </tbody>
+    </table>
+
+    <!-- Resumo -->
+    <div class="summary-box">
+      <p><strong>Total do mês:</strong> R$ <span id="totalMes">0.00</span></p>
+      <p><strong>Parcelas consideradas:</strong> <span id="qtdParcelas">0</span></p>
+    </div>
+  </div>
+
+   <!-- Modal Atualizar Despesa -->
+<div class="modal fade" id="modalEditarDespesa" tabindex="-1" aria-labelledby="modalEditarLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content rounded-3 shadow-lg">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title" id="modalEditarLabel"><i class="bi bi-pencil-square"></i> Editar Despesa</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formEditarDespesa">
+          <input type="hidden" id="editarId">
+
+          <div class="mb-3">
+            <label class="form-label">Descrição</label>
+            <input type="text" class="form-control" id="editarDescricao" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Valor Total</label>
+            <input type="number" class="form-control" id="editarValorTotal" step="0.01" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Categoria</label>
+            <input type="text" class="form-control" id="editarCategoria" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Data</label>
+            <input type="date" class="form-control" id="editarData" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Forma de Pagamento</label>
+            <select class="form-select" id="editarFormaPagamento" required>
+              <option value="DINHEIRO">Dinheiro</option>
+              <option value="CARTAO_CREDITO">Cartão de Crédito</option>
+              <option value="CARTAO_DEBITO">Cartão de Débito</option>
+              <option value="PIX">PIX</option>
+              <option value="BOLETO">Boleto</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Parcelas</label>
+            <input type="number" class="form-control" id="editarParcelas" value="1" min="1">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success" onclick="salvarAtualizacao()">Salvar Alterações</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <div class="text-center mt-4">
+  <a href="./index.html" class="btn btn-primary btn-voltar" onclick="voltarAoMenu()">
+    <i class="bi bi-house-door-fill"></i> Voltar ao Menu
+  </a>
+</div>
+<!-- Bootstrap Bundle (inclui Popper) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+   const urlBase = "http://localhost:8080/api/despesas";
+
+   function formatarData(data) {
+  const partes = data.split('-'); // ["2025", "09", "07"]
+  return `${partes[2]}/${partes[1]}/${partes[0]}`; // "07/09/2025"
+}
+
+// Função para carregar despesas do mês
+function carregarDespesasDoMes() {
+  const mesAno = document.getElementById("mesFiltro").value; // "YYYY-MM"
+  if (!mesAno) return;
+
+  const [ano, mes] = mesAno.split("-");
+
+  fetch(`${urlBase}/mes?mes=${mes}&ano=${ano}`)
+    .then(res => res.json())
+    .then(despesas => {
+      const tabela = document.getElementById("tabelaDespesas");
+      const totalMesEl = document.getElementById("totalMes");
+      const qtdParcelasEl = document.getElementById("qtdParcelas");
+
+      tabela.innerHTML = "";
+      let totalMes = 0;
+      let qtdParcelas = 0;
+
+      despesas.forEach(despesa => {
+        const parcelaValor = despesa.formaPagamento === "CARTAO_CREDITO"
+          ? despesa.valorTotal / despesa.parcelas
+          : despesa.valorTotal;
+
+        // Criar linha da tabela
+        const tr = document.createElement("tr");
+
+        tr.innerHTML = `
+        <td>${despesa.id}</td>
+          <td>${despesa.descricao}${despesa.formaPagamento === "CARTAO_CREDITO" ? ` (Parcelas: ${despesa.parcelas})` : ''}</td>
+         <td>${(() => {
+         const [ano, mes, dia] = despesa.data.split('-'); // "YYYY-MM-DD"
+          return new Date(ano, mes - 1, dia).toLocaleDateString(); // cria Date local
+         })()}</td>
+          <td>R$ ${parcelaValor.toFixed(2)}</td>
+          <td>${despesa.formaPagamento}</td>
+          <td>${despesa.parcelas}</td>
+          <td>
+            <button class="btn btn-sm btn-warning me-1" onclick="editarDespesa(${despesa.id})">
+              <i class="bi bi-pencil"></i>
+            </button>
+            <button class="btn btn-sm btn-danger" onclick="excluirDespesa(${despesa.id})">
+              <i class="bi bi-trash"></i>
+            </button>
+          </td>
+        `;
+        tabela.appendChild(tr);
+
+        totalMes += parcelaValor;
+        if (despesa.formaPagamento === "CARTAO_CREDITO") qtdParcelas++;
+      });
+
+      totalMesEl.textContent = totalMes.toFixed(2);
+      qtdParcelasEl.textContent = qtdParcelas;
+    })
+    .catch(err => {
+      console.error("Erro ao carregar despesas:", err);
+    });
+}
+
+// Atualizar tabela ao alterar mês
+document.getElementById("mesFiltro").addEventListener("change", carregarDespesasDoMes);
+
+// Função para excluir despesa
+function excluirDespesa(id) {
+  if (!confirm("Deseja realmente excluir esta despesa?")) return;
+
+  fetch(`${urlBase}/${id}`, { method: "DELETE" })
+    .then(res => {
+      if (!res.ok) throw new Error("Erro ao excluir");
+      alert("Despesa excluída com sucesso!");
+      carregarDespesasDoMes(); // Recarrega tabela
+    })
+    .catch(err => {
+      console.error(err);
+      alert("Falha ao excluir despesa.");
+    });
+}
+
+// Função para editar despesa
+function editarDespesa(id) {
+  // Aqui você pode abrir um modal preenchido
+  fetch(`${urlBase}/${id}`)
+    .then(res => res.json())
+    .then(despesa => {
+      // Exemplo: popular formulário com os dados
+      document.getElementById('descricao').value = despesa.descricao;
+      document.getElementById('valorTotal').value = despesa.valorTotal;
+      document.getElementById('nome').value = despesa.nome;
+      document.getElementById('data').value = despesa.data;
+      document.getElementById('formaPagamento').value = despesa.formaPagamento;
+      document.getElementById('parcelas').value = despesa.parcelas;
+
+      mostrarParcelas();
+
+      // Alterar o submit do form para atualizar ao invés de criar
+      const form = document.getElementById('formDespesa');
+      form.onsubmit = function(e) {
+        e.preventDefault();
+        const atualizarDespesa = {
+          descricao: document.getElementById('descricao').value,
+          valorTotal: parseFloat(document.getElementById('valorTotal').value),
+          categoria: document.getElementById('nome').value,
+          data: document.getElementById('data').value,
+          formaPagamento: document.getElementById('formaPagamento').value,
+          parcelas: parseInt(document.getElementById('parcelas').value)
+        };
+
+        fetch(`${urlBase}/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(atualizarDespesa)
+        })
+        .then(res => {
+          if (!res.ok) throw new Error("Erro ao atualizar despesa");
+          alert("Despesa atualizada com sucesso!");
+          form.reset();
+          mostrarParcelas();
+          form.onsubmit = cadastrarDespesa; // volta para função de cadastro original
+          carregarDespesasDoMes();
+        })
+        .catch(err => {
+          console.error(err);
+          alert("Falha ao atualizar despesa.");
+        });
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      alert("Erro ao buscar despesa para edição.");
+    });
+}
+
+
+
+// Inicializa o form de cadastro
+ document.getElementById('formDespesa').onsubmit = cadastrarDespesa;
+
+// Buscar despesa por ID e abrir modal preenchido
+async function editarDespesa(id) {
+  try {
+    const response = await fetch(`${urlBase}/${id}`);
+    if (!response.ok) throw new Error("Erro ao buscar despesa");
+    const despesa = await response.json();
+
+    // Preenche os campos do modal
+    document.getElementById("editarId").value = despesa.id;
+    document.getElementById("editarDescricao").value = despesa.descricao;
+    document.getElementById("editarValorTotal").value = despesa.valorTotal;
+    document.getElementById("editarCategoria").value = despesa.categoria;
+    document.getElementById("editarData").value = despesa.data;
+    document.getElementById("editarFormaPagamento").value = despesa.formaPagamento;
+    document.getElementById("editarParcelas").value = despesa.parcelas;
+
+    // Abre o modal
+    const modal = new bootstrap.Modal(document.getElementById("modalEditarDespesa"));
+    modal.show();
+  } catch (error) {
+    console.error(error);
+    alert("Erro ao carregar despesa para edição!");
+  }
+}
+
+// Salvar alterações da despesa
+async function salvarAtualizacao() {
+  const id = document.getElementById("editarId").value;
+
+  const despesaAtualizada = {
+    descricao: document.getElementById("editarDescricao").value,
+    valorTotal: parseFloat(document.getElementById("editarValorTotal").value),
+    categoria: document.getElementById("editarCategoria").value,
+    data: document.getElementById("editarData").value,
+    formaPagamento: document.getElementById("editarFormaPagamento").value,
+    parcelas: parseInt(document.getElementById("editarParcelas").value)
+  };
+
+  try {
+    const response = await fetch(`${urlBase}/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(despesaAtualizada)
+    });
+
+    if (!response.ok) throw new Error("Erro ao atualizar despesa");
+
+    alert("Despesa atualizada com sucesso!");
+    location.reload(); // recarrega tabela após atualização
+  } catch (error) {
+    console.error(error);
+    alert("Erro ao salvar alterações da despesa!");
+  }
+}
+
+</script>
+
+</body>
+</html>
