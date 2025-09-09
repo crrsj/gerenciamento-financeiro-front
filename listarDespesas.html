@@ -83,7 +83,10 @@
               <td>${despesa.descricao}</td>
               <td>${despesa.categoria}</td>
               <td>R$ ${despesa.valorTotal.toFixed(2)}</td>
-              <td>${despesa.data}</td>
+              <td>${(() => {
+                const [ano, mes, dia] = despesa.data.split('-'); // "YYYY-MM-DD"
+                return new Date(ano, mes - 1, dia).toLocaleDateString(); // cria Date local
+                })()}</td>
               <td>${despesa.formaPagamento}</td>
               <td>${despesa.parcelas}</td>
             </tr>`;

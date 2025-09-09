@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Despesas por Categoria</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+    .container {
+      margin-top: 40px;
+    }
+    .pagination {
+      justify-content: center;
+    }
+
+     .btn-voltar {
+     font-size: 1.2rem;
+     padding: 10px 25px;
+     border-radius: 50px;
+     box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+     transition: transform 0.2s, box-shadow 0.2s;
+   }
+
+    .btn-voltar:hover {
+     transform: translateY(-3px);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+    }
+ </style>
+</head>
+<body>
+  <div class="container">
+    <h2 class="text-center mb-4">Listagem de Despesas por Categoria</h2>
+
+    <!-- Filtro -->
+    <div class="row mb-4">
+      <div class="col-md-6 offset-md-3">
+        <div class="input-group">
+          <input type="text" id="categoriaFiltro" class="form-control" placeholder="Digite a categoria">
+          <button class="btn btn-primary" onclick="buscarDespesas()">Buscar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabela -->
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover text-center">
+        <thead class="table-dark">
+          <tr>
+            <th>Descrição</th>
+            <th>Data</th>
+            <th>Valor</th>
+            <th>Forma de Pagamento</th>
+            <th>Parcelas</th>
+            <th>Categoria</th>          
+          </tr>
+        </thead>
+        <tbody id="tabelaDespesas">
+          <!-- Dados dinâmicos -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Paginação -->
+    <nav>
+      <ul class="pagination" id="paginacao"></ul>
+    </nav>   
+
+  <div class="text-center mt-4">
+  <a href="./index.html" class="btn btn-primary btn-voltar" onclick="voltarAoMenu()">
+    <i class="bi bi-house-door-fill"></i> Voltar ao Menu
+  </a>
+</div>
+
+  <script>
+   const urlBase = "http://localhost:8080/api/despesas/categoria"; 
+   let paginaAtual = 0;
+   const tamanhoPagina = 10;
+   let categoriaAtual = "";
+
+  async function buscarDespesas(pagina = 0) {
+  categoriaAtual = document.getElementById('categoriaFiltro').value;
+  if (!categoriaAtual) {
+    alert("Digite uma categoria para buscar!");
+    return;
+  }
+
+  try {
+    const response = await fetch(`${urlBase}?categoria=${encodeURIComponent(categoriaAtual)}&page=${pagina}&size=${tamanhoPagina}`);
+    if (!response.ok) throw new Error("Erro ao buscar despesas.");
+
+    const data = await response.json();
+    preencherTabela(data.content);
+    montarPaginacao(data);
+    paginaAtual = pagina;
+  } catch (error) {
+    console.error(error);
+    alert("Erro ao carregar despesas!");
+  }
+}
+
+function preencherTabela(despesas) {
+  const tabela = document.getElementById("tabelaDespesas");
+  tabela.innerHTML = "";
+  despesas.forEach(despesa => {
+    const valor = parseFloat(despesa.valorTotal || 0);
+    const data = new Date(despesa.data + "T00:00:00"); // evita bug do timezone
+    const valorFormatado = valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${despesa.descricao}${despesa.formaPagamento === "CARTAO_CREDITO" ? ` (Parcelas: ${despesa.parcelas})` : ''}</td>
+      <td>${data.toLocaleDateString()}</td>
+      <td>${valorFormatado}</td>
+      <td>${despesa.formaPagamento}</td>
+      <td>${despesa.parcelas ?? '-'}</td>
+      <td>${despesa.categoria}</td>
+     
+    `;
+    tabela.appendChild(tr);
+  });
+}
+
+function montarPaginacao(data) {
+  const paginacao = document.getElementById("paginacao");
+  paginacao.innerHTML = "";
+
+  for (let i = 0; i < data.totalPages; i++) {
+    const li = document.createElement("li");
+    li.className = `page-item ${i === data.number ? "active" : ""}`;
+    li.innerHTML = `<a class="page-link" href="#">${i + 1}</a>`;
+    li.onclick = () => buscarDespesas(i);
+    paginacao.appendChild(li);
+  }
+}
+
+function editarDespesa(id) {
+  alert("Função de edição de despesa ID " + id + " ainda não implementada.");
+}
+
+function excluirDespesa(id) {
+  alert("Função de exclusão de despesa ID " + id + " ainda não implementada.");
+}
+
+function voltarMenu() {
+  window.location.href = "index.html";
+}
+</script>
+</body>
+</html>
